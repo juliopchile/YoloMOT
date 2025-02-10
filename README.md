@@ -1,7 +1,15 @@
-[![English](https://img.shields.io/badge/lang-English-blue)](README.md)
-[![Español](https://img.shields.io/badge/lang-Español-green)](README.es.md)
-[![Français](https://img.shields.io/badge/lang-Français-yellow)](README.fr.md)
-[![中文](https://img.shields.io/badge/lang-中文-red)](README.zh.md)
+[![English](https://img.shields.io/badge/lang-English-blue)](docs/README.en.md)
+[![Español](https://img.shields.io/badge/lang-Español-purple)](docs/README.es.md)
+[![Français](https://img.shields.io/badge/lang-Français-yellow)](docs/README.fr.md)
+[![中文](https://img.shields.io/badge/lang-中文-red)](docs/README.zh.md)
+[![Português](https://img.shields.io/badge/lang-Português-brightgreen)](docs/README.pt.md)
+[![Deutsch](https://img.shields.io/badge/lang-Deutsch-blueviolet)](docs/README.de.md)
+[![Italiano](https://img.shields.io/badge/lang-Italiano-orange)](docs/README.it.md)
+[![日本語](https://img.shields.io/badge/lang-日本語-yellowgreen)](docs/README.jp.md)
+[![العربية](https://img.shields.io/badge/lang-العربية-lightgrey)](docs/README.ar.md)
+[![עברית](https://img.shields.io/badge/lang-עברית-teal)](docs/README.he.md)
+[![Русский](https://img.shields.io/badge/lang-Русский-lightblue)](docs/README.ru.md)
+[![Українська](https://img.shields.io/badge/lang-Українська-skyblue)](docs/README.uk.md)
 
 # YoloMOT
 
@@ -124,7 +132,7 @@ To evaluate tracking results, start by cloning the original [TrackEval](https://
 git clone https://github.com/JonathonLuiten/TrackEval.git
 ```
 
-Next, copy the correctly configured `data` directory—which should contain your ground truth data and predictions for each tracker—into the TrackEval directory. To create a synthetic collection of tracker predictions and ground truths, you can use the example script `synthetic_dataset.py`.
+Next, copy the correctly configured `data` directory —which should contain your ground truth data and predictions for each tracker—into the TrackEval directory. To create a synthetic collection of tracker predictions and ground truths, you can use the example script `synthetic_dataset.py`.
 
 Once you have everything set up, run the `run_mot_challenge.py` script with the appropriate command line arguments to evaluate your custom dataset. This script computes tracking metrics such as HOTA, MOTA, etc. For more details, refer to the TrackEval documentation.
 
@@ -138,7 +146,7 @@ python scripts/run_mot_challenge.py --BENCHMARK MyCustomChallenge --SPLIT_TO_EVA
 ## MOT Challenge Evaluation Format
 
 **Ground Truth Path:**  
-`/data/gt/mot_challenge/<YourChallenge>-<eval>/<SeqName>/gt/gt.txt`  
+`/data/gt/mot_challenge/<YourChallenge>-<eval>/<SeqName>/gt/gt.txt`     
 This file contains the ground truth labels in MOT-Challenge format. Here, `<YourChallenge>` is the name of your challenge or dataset, `<eval>` is either `train`, `test`, or `all`, and `<SeqName>` corresponds to the video sequence.
 
 The directory structure under `/data/gt/mot_challenge/<YourChallenge>-<eval>` should be as follows:
@@ -150,9 +158,9 @@ The directory structure under `/data/gt/mot_challenge/<YourChallenge>-<eval>` sh
         |—— gt.txt
     |—— seqinfo.ini
 |—— <SeqName02>
-    |—— ……
+    |—— ...
 |—— <SeqName03>
-    |—— …...
+    |—— ...
 ```
 
 **Example `seqinfo.ini` file:**
@@ -201,7 +209,7 @@ The directory structure under `/data/trackers/mot_challenge/<YourChallenge>-<eva
         |—— <SeqName01>.txt
         |—— <SeqName02>.txt
 |—— <Tracker02>
-    |—— ……
+    |—— ...
 |—— <Tracker03>
-    |—— …...
+    |—— ...
 ```
