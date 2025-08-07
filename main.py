@@ -3,7 +3,7 @@ from utils import visualize, get_max_id
 from synthetic_dataset import create_predictions
 
 if __name__ == "__main__":
-    # Create the synthetic Dataset with yo°lov10x for Ground Truth labels.
+    # Create the synthetic Dataset with yolov10x for Ground Truth labels.
     videos_path = "dataset/source"
     gt_model = "models/salmons_filteredV1.pt"
     challenge_name = "MyCustomChallenge"
