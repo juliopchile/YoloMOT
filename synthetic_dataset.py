@@ -59,31 +59,64 @@ Predictions Path: /data/trackers/mot_challenge/<YourChallenge>-<eval>/<TrackerNa
 
 import os
 from ultralytics import YOLO
-from utils import return_framerate, save_yolo_results_as_json, save_mot_from_json, create_seqinfo_ini, update_seqmaps
+from utils import return_framerate, save_yolo_results_as_json, save_mot_from_json, save_mot_from_results, xml_to_mot, create_seqinfo_ini, update_seqmaps
 
+
+def convert_dataset(
+    cvat_labels: str,
+    challenge_name: str,
+    split_to_eval: str | None = "test"
+) -> None:
+    for cvat_file in os.listdir(cvat_labels):
+        video_name, ext = os.path.splitext(cvat_file)
+        cvat_path = os.path.join(cvat_labels, cvat_file)
+        
+        # /data/gt/mot_challenge/<YourChallenge>-<eval>/<SeqName>/gt/gt.txt
+        gt_path = os.path.join(
+            'data', 'gt', 'mot_challenge',
+            f"{challenge_name}-{split_to_eval}", video_name, 'gt'
+        )
+        xml_to_mot(
+            xml_path=cvat_path,
+            out_dir=gt_path,
+            sequence_name='gt',
+            include_classes=0,
+            fixed_confidence=True,
+            save_segmentation=False,
+            use_tracked_ids=True
+        )
 
 # split_to_eval valid values: 'train', 'test', 'all'
 def create_dataset(videos_path, model_name, challenge_name, split_to_eval="test"):
     # Create ground truth predictions for each video (sequence)
     for video in os.listdir(videos_path):
+        video_name, ext = os.path.splitext(video)
         # Instanciate the YOLO model
         model = YOLO(model_name)
-        
         video_path = os.path.join(videos_path, video)    # The path to the video or the directory of images.
         results = model.track(source=video_path, tracker="bytetrack.yaml")  # We are using bytetrack as example.
         height, width = results[0].orig_shape
 
         # Save the results in the MOT Challenge format in the path where ground truths go.
         # /data/gt/mot_challenge/<YourChallenge>-<eval>/<SeqName>/gt/gt.txt
-        gt_path = os.path.join('data', 'gt', 'mot_challenge', f"{challenge_name}-{split_to_eval}", video, 'gt')
-        save_mot_from_results(results=results, out_dir=gt_path, sequence_name='gt', include_classes=0, fixed_confidence=True,
-                              save_segmentation=True, use_tracked_ids=True, img_height=height, img_width=width)
+        gt_path = os.path.join('data', 'gt', 'mot_challenge', f"{challenge_name}-{split_to_eval}", video_name, 'gt')
+        save_mot_from_results(
+            results=results,
+            out_dir=gt_path,
+            sequence_name='gt',
+            include_classes=0,
+            fixed_confidence=True,
+            save_segmentation=True,
+            use_tracked_ids=True,
+            img_height=height,
+            img_width=width
+        )
 
         # Create the seqinfo.ini file.
-        seq_ini_path = os.path.join('data', 'gt', 'mot_challenge', f"{challenge_name}-{split_to_eval}", video)
+        seq_ini_path = os.path.join('data', 'gt', 'mot_challenge', f"{challenge_name}-{split_to_eval}", video_name)
         seq_length = len(results)
         frame_rate = return_framerate(video_path)
-        create_seqinfo_ini(save_path=seq_ini_path, seq_name=video, seq_length=seq_length, frame_rate=frame_rate, im_width=width, im_height=height)
+        create_seqinfo_ini(save_path=seq_ini_path, seq_name=video_name, seq_length=seq_length, frame_rate=frame_rate, im_width=width, im_height=height)
 
         del model   # Delete model to save memory
 
@@ -121,7 +154,6 @@ def create_predictions(videos_path, models_path, trackers_list, challenge_name, 
                 seqmaps_dir = os.path.join('data', 'gt', 'mot_challenge', 'seqmaps')
                 update_seqmaps(seqmaps_dir=seqmaps_dir, challenge_name=challenge_name, split_to_eval=split_to_eval, sequence_name=sequence_name)
 
-    print(height, width)
 
 if __name__ == "__main__":
     # Create the synthetic Dataset with yolov10x for Ground Truth labels.

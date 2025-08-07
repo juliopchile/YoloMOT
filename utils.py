@@ -1,11 +1,11 @@
 import os
 import json
+from typing import Any
 import cv2
 import numpy as np
 import pandas as pd
 import xml.etree.ElementTree as ET  # For reading CVAT labels
 from pycocotools import mask as maskUtils  # For generating RLE
-from typing import Dict, List, Tuple, Optional
 from ultralytics.engine.results import Results
 
 
@@ -13,7 +13,15 @@ def return_framerate(video_path: str) -> float:
     if not os.path.isfile(video_path):
         return 30.0
 
-    if os.path.splitext(video_path)[1].lower() not in {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm'}:
+    if os.path.splitext(video_path)[1].lower() not in {
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".mkv",
+        ".flv",
+        ".wmv",
+        ".webm",
+    }:
         return 30.0
 
     cap = cv2.VideoCapture(video_path)
@@ -22,42 +30,42 @@ def return_framerate(video_path: str) -> float:
 
     return fps if fps > 0 else 30.0
 
-# For saving YOLO results
 
-def save_yolo_results_as_json(results: List[Results], file_path="results.json", normalize=False, decimals=20):
-    """
-    Save YOLO results for all frames into a single JSON file.
+# For saving YOLO results
+def save_yolo_results_as_json(
+    results: list[Results],
+    file_path="results.json",
+    normalize=False,
+    decimals=20
+):
+    """ Save YOLO results for all frames into a single JSON file.
     
-    Parameters:
-        results (list): A list of YOLO result objects, one per frame.
-                        Each result must support the .to_json() method.
-        file_path (str, optional): The file path (including name) where the JSON will be saved.
-                                   Defaults to "results.json".
-        normalize (bool, optional): Whether to normalize the JSON output.
-                                    Passed to .to_json(). Defaults to False.
-        decimals (int, optional): Number of decimal places for numerical values.
-                                  Passed to .to_json(). Defaults to 20.
+    The function iterates over each frame's result, converts it to a
+    Python object (by converting the JSON string returned by
+    .to_json()), and stores it in a dictionary using the frame index
+    (as an integer) as the key.
     
-    The function iterates over each frame's result, converts it to a Python object
-    (by converting the JSON string returned by .to_json()), and stores it in a dictionary
-    using the frame index (as an integer) as the key.
-    
-    Example usage:
-        results = model.predict(source=video_path)  # or model.track(source=video_path)
-        save_results_as_json(results, file_path="my_results.json")
+    :param list results: A list of YOLO result objects, one per frame.
+    :param (str, optional) file_path: The file path (including name)
+        where the JSON will be saved. Defaults to "results.json".
+    :param (bool, optional) normalize: Whether to normalize the JSON
+        output. Defaults to False.
+    decimals (int, optional): Number of decimal places for numerical
+        values. Defaults to 20.
     """
     all_results = {}
 
     # Process each frame's result.
     for frame_idx, result in enumerate(results):
         # Convert the result (a Results object) to a JSON string,
-        # then parse that string into a Python object (typically a list of detection dictionaries).
+        # then parse that string into a Python object
+        # (typically a list of detection dictionaries).
         json_str = result.to_json(normalize=normalize, decimals=decimals)
         frame_detections = json.loads(json_str)
         # Use the frame index as key (plain integer, not zero-padded)
         all_results[frame_idx] = frame_detections
 
-    # Save the complete results dictionary to a JSON file with pretty indentation.
+    # Save the complete results dictionary to a JSON file.
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, "w") as f:
         json.dump(all_results, f, indent=4)
@@ -65,27 +73,34 @@ def save_yolo_results_as_json(results: List[Results], file_path="results.json", 
 
 
 # Formating results in MOT format
+def save_mot_from_detections(
+    detections_per_frame: dict[int, list[dict[str, Any]]],
+    out_dir: str,
+    sequence_name: str,
+    include_classes: int | list[int] | None = None,
+    fixed_confidence: bool = False,
+    save_segmentation: bool = False,
+    use_tracked_ids: bool = False,
+    img_height: int = -1,
+    img_width: int = -1,
+):
+    """ Save detections in MOTChallenge format from a dictionary of
+    detections per frame.
 
-def save_mot_from_detections(detections_per_frame, out_dir: str, sequence_name: str,
-                             include_classes: Optional[int | List[int]] = None,
-                             fixed_confidence: bool = False,
-                             save_segmentation: bool = False,
-                             use_tracked_ids: bool = False,
-                             img_height: int = -1, img_width: int = -1):
-    """
-    Save detections in MOTChallenge format from a dictionary of detections per frame.
-    
-    Parameters:
-        detections_per_frame (dict): Dictionary with 0-based frame indices (int) as keys
-                                     and lists of detection dictionaries as values.
-        out_dir (str): Output directory for the text files.
-        sequence_name (str): Base name for the output files.
-        include_classes (int or list, optional): Classes to include in the output.
-        fixed_confidence (bool, optional): Use 1.0 as confidence if True.
-        save_segmentation (bool, optional): Save segmentation results if True.
-        use_tracked_ids (bool, optional): Use track IDs if available and True.
-        img_height (int, optional): Image height for segmentation.
-        img_width (int, optional): Image width for segmentation.
+    :param dict detections_per_frame: Dictionary with 0-based frame
+        indices as keys and lists of detection dictionaries as values.
+    :param str out_dir: Output directory for the text files.
+    :param str sequence_name: Base name for the output files.
+    :param (int, list, optional) include_classes: Classes to include in
+        the output.
+    :param (bool, optional) fixed_confidence: If True, it will use 1.0
+        as confidence
+    :param (bool, optional) save_segmentation: If True, save
+        segmentation results.
+    :param (bool, optional) use_tracked_ids: If true, use track IDs if
+        they are available.
+    :param (int, optional) img_height: Image height for segmentation.
+    :param (int, optional) img_width: Image width for segmentation.
     """
     os.makedirs(out_dir, exist_ok=True)
 
@@ -98,20 +113,22 @@ def save_mot_from_detections(detections_per_frame, out_dir: str, sequence_name: 
 
     # Process results frame by frame.
     for frame_idx in sorted(detections_per_frame.keys()):
-        frame_number = frame_idx + 1  # MOTChallenge uses 1-based frame numbering.
+        frame_number = frame_idx + 1  # MOTChallenge uses 1-based frame.
         predictions = detections_per_frame[frame_idx]
 
         # Iterate over each detection in the frame.
         for pred in predictions:
-            # Filter detections based on include_classes if provided.
+            # Filter detections based on include_classes, if provided.
             class_val = pred.get("class")
-            if include_classes is not None:
-                if isinstance(include_classes, int) and class_val != include_classes:
+            if isinstance(include_classes, int):
+                if class_val != include_classes:
                     continue
-                elif isinstance(include_classes, list) and class_val not in include_classes:
+            elif isinstance(include_classes, list):
+                if class_val not in include_classes:
                     continue
 
-            # Get bounding box information; expected keys in 'box': x1, y1, x2, y2.
+            # Get bounding box information;
+            # expected keys in 'box': x1, y1, x2, y2.
             box = pred.get("box", {})
             x1 = box.get("x1", 0)
             y1 = box.get("y1", 0)
@@ -124,36 +141,49 @@ def save_mot_from_detections(detections_per_frame, out_dir: str, sequence_name: 
 
             # Determine the confidence value.
             conf = 1.0 if fixed_confidence else pred.get("confidence", 0)
-            
-            # Determine the track ID to use. If a 'track_id' column exists and use_tracked_ids is True,
-            # use its value; otherwise, default to -1.
-            track_val = int(pred["track_id"]) if use_tracked_ids and "track_id" in pred else -1
 
-            # Build the detection line in MOTChallenge format.
-            # Format: <frame>, <id>, <bb_left>, <bb_top>, <bb_width>, <bb_height>, <conf>, -1, -1, -1
-            det_line = (f"{frame_number}, {track_val}, {bb_left}, {bb_top}, {bb_width}, {bb_height}, {conf}, -1, -1, -1")
+            # Determine the track ID to use. If a 'track_id' column
+            # exists and use_tracked_ids is True, use its value;
+            # otherwise, default to -1.
+            if use_tracked_ids and "track_id" in pred:
+                track_val = int(pred["track_id"])
+            else:
+                track_val = -1
+
+            # Build the detection line in MOTChallenge format:
+            # <frame>, <id>, <bb_left>, <bb_top>, <bb_width>,
+            # <bb_height>, <conf>, -1, -1, -1
+            det_line = (f"{frame_number}, {track_val}, {bb_left}, {bb_top}, "
+                        f"{bb_width}, {bb_height}, {conf}, -1, -1, -1")
             det_lines.append(det_line)
 
             # Process segmentation if requested.
-            if save_segmentation:
-                seg_data = pred.get("segments", None)
-                rle_str = ""
-                if seg_data is not None and isinstance(seg_data, dict):
-                    # Expect segmentation dict to contain lists under keys 'x' and 'y'.
-                    xs = seg_data.get("x", [])
-                    ys = seg_data.get("y", [])
-                    if len(xs) == len(ys) and len(xs) > 0:
-                        # Convert to a flat list of alternating coordinates.
-                        polygon = [coord for pair in zip(xs, ys) for coord in pair]
-                        # Convert the polygon into RLE using pycocotools.
-                        rles = maskUtils.frPyObjects([polygon], img_height, img_width)
-                        rle = maskUtils.merge(rles)
-                        # Decode the 'counts' if it is in bytes.
-                        rle_str = rle["counts"].decode("ascii") if isinstance(rle["counts"], bytes) else rle["counts"]
-                # Build the segmentation line in MOTS format:
-                # <frame> <id> <class> <img_height> <img_width> <rle>
-                seg_line = f"{frame_number} {track_val} {class_val} {img_height} {img_width} {rle_str}"
-                seg_lines.append(seg_line)
+            if not save_segmentation:
+                continue
+            seg_data = pred.get("segments", None)
+            rle_str = ""
+            if isinstance(seg_data, dict):
+                # Expect dicts to be lists under keys 'x' and 'y'.
+                xs = seg_data.get("x", [])
+                ys = seg_data.get("y", [])
+                if len(xs) == len(ys) and len(xs) > 0:
+                    # Convert to a list of alternating coordinates.
+                    polygon = [coord for pair in zip(xs, ys) for coord in pair]
+                    # Convert the polygon into RLE using pycocotools.
+                    rles = maskUtils.frPyObjects(
+                        [polygon], img_height, img_width)
+                    rle = maskUtils.merge(rles)
+                    # Decode the 'counts' if it is in bytes.
+                    if isinstance(rle["counts"], bytes):
+                        rle_str = rle["counts"].decode("ascii")
+                    else:
+                        rle_str = rle["counts"]
+
+            # Build the segmentation line in MOTS format:
+            # <frame> <id> <class> <img_height> <img_width> <rle>
+            seg_line = (f"{frame_number} {track_val} {class_val} {img_height} "
+                        f"{img_width} {rle_str}")
+            seg_lines.append(seg_line)
 
     # Write detection results to file.
     with open(detection_file_path, "w") as f:
@@ -169,79 +199,294 @@ def save_mot_from_detections(detections_per_frame, out_dir: str, sequence_name: 
         print(f"Segmentation results saved to {seg_file_path}")
 
 
-def save_mot_from_results(results: List['Results'], out_dir: str, sequence_name: str,
-                          include_classes: Optional[int | List[int]] = None,
-                          fixed_confidence: bool = False,
-                          save_segmentation: bool = False,
-                          use_tracked_ids: bool = False,
-                          img_height: int = -1, img_width: int = -1):
+def save_mot_from_results(
+    results: list[Results],
+    out_dir: str,
+    sequence_name: str,
+    include_classes: int | list[int] | None = None,
+    fixed_confidence: bool = False,
+    save_segmentation: bool = False,
+    use_tracked_ids: bool = False,
+    img_height: int = -1,
+    img_width: int = -1,
+):
+    """ Save YOLO Results list in MOTChallenge format.
+
+    :param list[Results] results: List of YOLO Results objects.
+    :param str out_dir: Output directory for the text files.
+    :param str sequence_name: Base name for the output files.
+    :param (int, list, optional) include_classes: Classes to include in
+        the output.
+    :param (bool, optional) fixed_confidence: If True, it will use 1.0
+        as confidence
+    :param (bool, optional) save_segmentation: If True, save
+        segmentation results.
+    :param (bool, optional) use_tracked_ids: If true, use track IDs if
+        they are available.
+    :param (int, optional) img_height: Image height for segmentation.
+    :param (int, optional) img_width: Image width for segmentation.
     """
-    Save YOLO Results list in MOTChallenge format.
-    
-    Parameters:
-        results (List[Results]): List of YOLO Results objects.
-        (Other parameters same as save_mot_from_detections)
-    """
-    detections_per_frame = {frame_idx: result.to_df(normalize=False, decimals=20).to_dict(orient='records') for frame_idx, result in enumerate(results)}
-    save_mot_from_detections(detections_per_frame, out_dir, sequence_name,
-                             include_classes=include_classes,
-                             fixed_confidence=fixed_confidence,
-                             save_segmentation=save_segmentation,
-                             use_tracked_ids=use_tracked_ids,
-                             img_height=img_height, img_width=img_width)
+    detections_per_frame = {}
+    for frame_idx, result in enumerate(results):
+        result_df = result.to_df(normalize=False, decimals=20)
+        result_list_of_dicts = result_df.to_dict(orient="records")
+        detections_per_frame[frame_idx] = result_list_of_dicts
+
+    save_mot_from_detections(
+        detections_per_frame,
+        out_dir,
+        sequence_name,
+        include_classes=include_classes,
+        fixed_confidence=fixed_confidence,
+        save_segmentation=save_segmentation,
+        use_tracked_ids=use_tracked_ids,
+        img_height=img_height,
+        img_width=img_width,
+    )
 
 
-def save_mot_from_json(json_path: str, out_dir: str, sequence_name: str,
-                       include_classes: Optional[int | List[int]] = None,
-                       fixed_confidence: bool = False,
-                       save_segmentation: bool = False,
-                       use_tracked_ids: bool = False,
-                       img_height: int = -1, img_width: int = -1):
+def save_mot_from_json(
+    json_path: str,
+    out_dir: str,
+    sequence_name: str,
+    include_classes: int | list[int] | None = None,
+    fixed_confidence: bool = False,
+    save_segmentation: bool = False,
+    use_tracked_ids: bool = False,
+    img_height: int = -1,
+    img_width: int = -1,
+):
     """
     Save YOLO predictions from JSON in MOTChallenge format.
-    
-    Parameters:
-        json_path (str): Path to JSON file with predictions.
-        (Other parameters same as save_mot_from_detections)
+
+    :param str json_path: Path where the results are saved as JSON.
+    :param str out_dir: Output directory for the text files.
+    :param str sequence_name: Base name for the output files.
+    :param (int, list, optional) include_classes: Classes to include in
+        the output.
+    :param (bool, optional) fixed_confidence: If True, it will use 1.0
+        as confidence
+    :param (bool, optional) save_segmentation: If True, save
+        segmentation results.
+    :param (bool, optional) use_tracked_ids: If true, use track IDs if
+        they are available.
+    :param (int, optional) img_height: Image height for segmentation.
+    :param (int, optional) img_width: Image width for segmentation.
     """
     with open(json_path, "r") as f:
         all_results = json.load(f)
-    detections_per_frame = {int(key): value for key, value in all_results.items()}
-    save_mot_from_detections(detections_per_frame, out_dir, sequence_name,
-                             include_classes=include_classes,
-                             fixed_confidence=fixed_confidence,
-                             save_segmentation=save_segmentation,
-                             use_tracked_ids=use_tracked_ids,
-                             img_height=img_height, img_width=img_width)
+    detections_per_frame = {
+        int(key): value for key, value in all_results.items()
+    }
+
+    save_mot_from_detections(
+        detections_per_frame,
+        out_dir,
+        sequence_name,
+        include_classes=include_classes,
+        fixed_confidence=fixed_confidence,
+        save_segmentation=save_segmentation,
+        use_tracked_ids=use_tracked_ids,
+        img_height=img_height,
+        img_width=img_width,
+    )
 
 
-def xml_to_mot(xml_path: str, out_dir: str, sequence_name: str,
-               include_classes=None,
-               fixed_confidence=False,
-               save_segmentation=False,
-               use_tracked_ids=False,
-               img_height=-1, img_width=-1):
-    pass
-
-
-def create_seqinfo_ini(save_path, seq_name, seq_length, 
-                         frame_rate=30, im_width=1920, im_height=1080, 
-                         im_dir="img1", im_ext=".jpg"):
+def read_xml(xml_path: str) -> tuple[dict[int, list[dict[str, Any]]], dict]:
     """
-    Creates a seqinfo.ini file in the specified directory with sequence information.
+    Parse a CVAT for video 1.1 XML file and return:
+      - detections_per_frame: {frame_idx: [ {class, name, box, confidence, track_id}, ... ]}
+      - meta: {"img_width": int, "img_height": int, "label_to_id": {label_name: class_id}}
+
+    Detection dict format:
+      {
+        "class": int,                 # class id
+        "name": str,                  # label name
+        "box": {"x1": float, "y1": float, "x2": float, "y2": float},
+        "confidence": float,          # 1.0 for ground truth
+        "track_id": int               # CVAT track id
+      }
+    """
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+
+    # Defaults
+    img_width = -1
+    img_height = -1
+
+    # Parse meta/original_size if present
+    meta_el = root.find("meta")
+    if meta_el is not None:
+        orig_size_el = meta_el.find("task/original_size")
+        if orig_size_el is not None:
+            w_text = orig_size_el.findtext("width")
+            h_text = orig_size_el.findtext("height")
+            if w_text is not None:
+                try:
+                    img_width = int(w_text)
+                except Exception:
+                    img_width = -1
+            if h_text is not None:
+                try:
+                    img_height = int(h_text)
+                except Exception:
+                    img_height = -1
+
+    # Build label -> class id mapping from meta labels order
+    label_to_id: dict[str, int] = {}
+    if meta_el is not None:
+        labels_el = meta_el.find("task/labels")
+        if labels_el is not None:
+            names: list[str] = []
+            for lbl in labels_el.findall("label"):
+                nm = lbl.findtext("name")
+                if nm is not None:
+                    names.append(nm)
+            label_to_id = {nm: i for i, nm in enumerate(names)}
+
+    # Fallback: collect unique labels from tracks (sorted) if meta labels missing
+    if not label_to_id:
+        unique_names = set()
+        for t in root.findall("track"):
+            lb = t.get("label")
+            if lb is not None:
+                unique_names.add(lb)
+        for i, nm in enumerate(sorted(unique_names)):
+            label_to_id[nm] = i
+
+    detections_per_frame: dict[int, list[dict[str, Any]]] = {}
+
+    # Iterate tracks and boxes
+    for track in root.findall("track"):
+        label_name = track.get("label", "")
+        class_id = label_to_id.get(label_name, 0)
+
+        try:
+            track_id = int(track.get("id", "-1"))
+        except Exception:
+            track_id = -1
+
+        for box_el in track.findall("box"):
+            # Skip boxes marked outside="1"
+            outside_attr = box_el.get("outside", "0")
+            try:
+                is_outside = int(outside_attr) == 1
+            except Exception:
+                is_outside = False
+            if is_outside:
+                continue
+
+            # Frame index (0-based)
+            try:
+                frame_idx = int(box_el.get("frame", "0"))
+            except Exception:
+                continue
+
+            # Coordinates
+            try:
+                xtl = float(box_el.get("xtl", "0"))
+                ytl = float(box_el.get("ytl", "0"))
+                xbr = float(box_el.get("xbr", "0"))
+                ybr = float(box_el.get("ybr", "0"))
+            except Exception:
+                continue
+
+            det = {
+                "class": class_id,
+                "name": label_name,
+                "box": {"x1": xtl, "y1": ytl, "x2": xbr, "y2": ybr},
+                "confidence": 1.0,
+                "track_id": track_id,
+            }
+
+            if frame_idx not in detections_per_frame:
+                detections_per_frame[frame_idx] = []
+            detections_per_frame[frame_idx].append(det)
+
+    meta = {
+        "img_width": img_width,
+        "img_height": img_height,
+        "label_to_id": label_to_id,
+    }
+    return detections_per_frame, meta
+
+
+def xml_to_mot(
+    xml_path: str,
+    out_dir: str,
+    sequence_name: str,
+    include_classes=None,
+    fixed_confidence=False,
+    save_segmentation=False,
+    use_tracked_ids=False,
+    img_height: int = -1,
+    img_width: int = -1,
+):
+    """
+    Read CVAT-for-video-1.1 XML and save in MOTChallenge format using
+    save_mot_from_detections().
+    
+    :param str xml_path: Path where the ground truth are saved as XML.
+    :param str out_dir: Output directory for the text files.
+    :param str sequence_name: Base name for the output files.
+    :param (int, list, optional) include_classes: Classes to include in
+        the output.
+    :param (bool, optional) fixed_confidence: If True, it will use 1.0
+        as confidence
+    :param (bool, optional) save_segmentation: If True, save
+        segmentation results.
+    :param (bool, optional) use_tracked_ids: If true, use track IDs if
+        they are available.
+    :param (int, optional) img_height: Image height for segmentation.
+    :param (int, optional) img_width: Image width for segmentation.
+    """
+    detections_per_frame, meta = read_xml(xml_path)
+
+    # If not provided, fill image size from XML meta (useful for segmentation saving)
+    if img_width is None or img_width < 0:
+        img_width = meta.get("img_width", -1)
+    if img_height is None or img_height < 0:
+        img_height = meta.get("img_height", -1)
+
+    # Persist using your existing helper
+    save_mot_from_detections(
+        detections_per_frame=detections_per_frame,
+        out_dir=out_dir,
+        sequence_name=sequence_name,
+        include_classes=include_classes,
+        fixed_confidence=fixed_confidence,
+        save_segmentation=save_segmentation,
+        use_tracked_ids=use_tracked_ids,
+        img_height=img_height,
+        img_width=img_width,
+    )
+
+def create_seqinfo_ini(
+    save_path,
+    seq_name,
+    seq_length,
+    frame_rate=30.0,
+    im_width=1920,
+    im_height=1080,
+    im_dir="img1",
+    im_ext=".jpg",
+):
+    """
+    Creates a seqinfo.ini file in the specified directory with sequence
+    information.
 
     Parameters:
         save_path (str): Directory where the seqinfo.ini file will be saved.
         seq_name (str): Name of the sequence.
         seq_length (int): Total number of frames in the sequence.
-        frame_rate (int, optional): Frame rate of the sequence. Defaults to 30.
+        frame_rate (float, optional): Frame rate of the sequence. Defaults to 30.
         im_width (int, optional): Width of the images. Defaults to 1920.
         im_height (int, optional): Height of the images. Defaults to 1080.
         im_dir (str, optional): Name of the directory containing images. Defaults to "img1".
         im_ext (str, optional): Image file extension (including the dot). Defaults to ".jpg".
-    
+
     The generated INI file will have the following content:
-    
+
         [Sequence]
         name=<SeqName>
         imDir=img1
@@ -250,7 +495,7 @@ def create_seqinfo_ini(save_path, seq_name, seq_length,
         imWidth=1920
         imHeight=1080
         imExt=.jpg
-    
+
     Example:
         create_seqinfo_ini("output", "people_walking_1_200", 525)
         -> Creates the file "output/seqinfo.ini"
@@ -258,7 +503,7 @@ def create_seqinfo_ini(save_path, seq_name, seq_length,
     # Ensure the save directory exists.
     os.makedirs(save_path, exist_ok=True)
     file_path = os.path.join(save_path, "seqinfo.ini")
-    
+
     # Create and write the seqinfo.ini file.
     with open(file_path, "w") as f:
         f.write("[Sequence]\n")
@@ -269,14 +514,14 @@ def create_seqinfo_ini(save_path, seq_name, seq_length,
         f.write(f"imWidth={im_width}\n")
         f.write(f"imHeight={im_height}\n")
         f.write(f"imExt={im_ext}\n")
-    
+
     print(f"seqinfo.ini created at {file_path}")
 
 
 def update_seqmaps(seqmaps_dir, challenge_name, split_to_eval, sequence_name):
     """
     Update the seqmaps directory by adding the given sequence name to the appropriate sequence files.
-    
+
     The function updates two files:
       1. <challenge_name>-<split_to_eval>.txt (e.g. YourChallenge-train.txt)
       2. <challenge_name>-all.txt
@@ -285,13 +530,13 @@ def update_seqmaps(seqmaps_dir, challenge_name, split_to_eval, sequence_name):
       - If the file does not exist, it is created and the first line is "name".
       - If the file exists, the function checks if the sequence name is already present.
       - If the sequence name is not present, it is appended on a new line.
-    
+
     Parameters:
         seqmaps_dir (str): Directory where the seqmaps files are stored.
         challenge_name (str): The name of the challenge (e.g., "YourChallenge").
         split_to_eval (str): The split identifier ("train", "test", or "all").
         sequence_name (str): The sequence name to add (e.g., "seqName1").
-    
+
     Example file content for <challenge_name>-train.txt:
         name
         seqName1
@@ -300,11 +545,11 @@ def update_seqmaps(seqmaps_dir, challenge_name, split_to_eval, sequence_name):
     """
     # Ensure the seqmaps directory exists.
     os.makedirs(seqmaps_dir, exist_ok=True)
-    
+
     # Define file paths for the split file and the "all" file.
     split_file = os.path.join(seqmaps_dir, f"{challenge_name}-{split_to_eval}.txt")
     all_file = os.path.join(seqmaps_dir, f"{challenge_name}-all.txt")
-    
+
     def update_file(file_path, seq_name):
         """
         Helper function that creates/updates the file at file_path.
@@ -328,19 +573,20 @@ def update_seqmaps(seqmaps_dir, challenge_name, split_to_eval, sequence_name):
                 with open(file_path, "a") as f:
                     f.write(f"{seq_name}\n")
                 print(f"Added sequence '{seq_name}' to '{file_path}'.")
-    
+
     # Update both the split file and the "all" file.
     update_file(split_file, sequence_name)
     update_file(all_file, sequence_name)
 
 
 # For visualization
-
-def load_detections(labels_path: str) -> Dict[int, List[Tuple[int, float, float, float, float, float]]]:
-    frame_dets: Dict[int, List[Tuple[int, float, float, float, float, float]]] = {}
-    with open(labels_path, 'r') as f:
+def load_detections(
+    labels_path: str
+)-> dict[int, list[tuple[int, float, float, float, float, float]]]:
+    frame_dets = {}
+    with open(labels_path, "r") as f:
         for line in f:
-            parts = line.strip().split(',')
+            parts = line.strip().split(",")
             if len(parts) < 7:
                 continue
             try:
@@ -353,26 +599,26 @@ def load_detections(labels_path: str) -> Dict[int, List[Tuple[int, float, float,
     return frame_dets
 
 
-def load_segmentations(labels_path: str) -> Dict[int, List[Tuple[int, str]]]:
-    frame_segs: Dict[int, List[Tuple[int, str]]] = {}
-    with open(labels_path, 'r') as f:
+def load_segmentations(labels_path: str) -> dict[int, list[tuple[int, str]]]:
+    frame_segs: dict[int, list[tuple[int, str]]] = {}
+    with open(labels_path, "r") as f:
         for line in f:
-            parts = line.strip().split(' ')
+            parts = line.strip().split(" ")
             if len(parts) < 6:
                 continue
             try:
                 frame_idx = int(parts[0])
                 track_id = int(parts[1])
-                rle = ' '.join(parts[5:])
+                rle = " ".join(parts[5:])
             except ValueError:
                 continue
             frame_segs.setdefault(frame_idx, []).append((track_id, rle))
     return frame_segs
 
 
-def find_frame_path(directory: str, frame_idx: int) -> Optional[str]:
+def find_frame_path(directory: str, frame_idx: int) -> str | None:
     base = f"{frame_idx:05d}"
-    for ext in ('.jpg', '.png', '.jpeg'):
+    for ext in (".jpg", ".png", ".jpeg"):
         p = os.path.join(directory, base + ext)
         if os.path.exists(p):
             return p
@@ -381,31 +627,38 @@ def find_frame_path(directory: str, frame_idx: int) -> Optional[str]:
 
 def annotate_detections(
     img: np.ndarray,
-    dets: List[Tuple[int, float, float, float, float, float]],
-    trails: Dict[int, List[Tuple[int, int]]],
-    color=(0,255,0)
+    dets: list[tuple[int, float, float, float, float, float]],
+    trails: dict[int, list[tuple[int, int]]],
+    color=(0, 255, 0),
 ) -> np.ndarray:
     for track_id, l, t, w, h, conf in dets:
         x, y, w_i, h_i = map(int, (l, t, w, h))
         cv2.rectangle(img, (x, y), (x + w_i, y + h_i), color, 2)
-        cv2.putText(img, f"ID{track_id}:{conf:.2f}", (x, y - 6),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+        cv2.putText(
+            img,
+            f"ID{track_id}:{conf:.2f}",
+            (x, y - 6),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            color,
+            1,
+        )
         cx, cy = x + w_i // 2, y + h_i // 2
         trails.setdefault(track_id, []).append((cx, cy))
     # draw trails
     for tid, points in trails.items():
         for i in range(1, len(points)):
-            cv2.line(img, points[i-1], points[i], color, 1)
+            cv2.line(img, points[i - 1], points[i], color, 1)
     return img
 
 
 def overlay_segmentations(
     img: np.ndarray,
-    segs: List[Tuple[int, str]],
-    trails: Dict[int, List[Tuple[int, int]]],
+    segs: list[tuple[int, str]],
+    trails: dict[int, list[tuple[int, int]]],
     alpha: float = 0.5,
-    color_mask=(0,0,255),
-    color_trail=(255,0,0)
+    color_mask=(0, 0, 255),
+    color_trail=(255, 0, 0),
 ) -> np.ndarray:
     if maskUtils is None:
         raise ImportError("pycocotools is required for segmentation overlay")
@@ -413,7 +666,7 @@ def overlay_segmentations(
     overlay = img.copy()
     for track_id, rle in segs:
         try:
-            decoded = maskUtils.decode({'size': [h, w], 'counts': rle})
+            decoded = maskUtils.decode({"size": [h, w], "counts": rle})
         except Exception:
             continue
         overlay[decoded > 0] = color_mask
@@ -424,13 +677,13 @@ def overlay_segmentations(
     result = cv2.addWeighted(img, 1 - alpha, overlay, alpha, 0)
     for tid, points in trails.items():
         for i in range(1, len(points)):
-            cv2.line(result, points[i-1], points[i], color_trail, 1)
+            cv2.line(result, points[i - 1], points[i], color_trail, 1)
     return result
 
 
 def prune_trails(
-    trails: Dict[int, List[Tuple[int, int]]],
-    active_ids: List[int]
+    trails: dict[int, list[tuple[int, int]]],
+    active_ids: list[int]
 ):
     # remove trails for IDs no longer present
     for tid in list(trails.keys()):
@@ -447,19 +700,23 @@ def process_frames_from_directory(
     save_dir
 ):
     os.makedirs(save_dir, exist_ok=True)
-    trails_det: Dict[int, List[Tuple[int, int]]] = {}
-    trails_seg: Dict[int, List[Tuple[int, int]]] = {}
+    trails_det: dict[int, list[tuple[int, int]]] = {}
+    trails_seg: dict[int, list[tuple[int, int]]] = {}
     frame_indices = sorted(set(frame_dets.keys()) | set(frame_segs.keys()))
     for frame_idx in frame_indices:
         img_path = find_frame_path(video_path, frame_idx)
-        if not img_path: continue
+        if not img_path:
+            continue
         img = cv2.imread(img_path)
-        if img is None: continue
+        if img is None:
+            continue
         # prune trails
         active_det_ids = [t[0] for t in frame_dets.get(frame_idx, [])]
         active_seg_ids = [t[0] for t in frame_segs.get(frame_idx, [])]
-        if use_detection: prune_trails(trails_det, active_det_ids)
-        if use_segmentation: prune_trails(trails_seg, active_seg_ids)
+        if use_detection:
+            prune_trails(trails_det, active_det_ids)
+        if use_segmentation:
+            prune_trails(trails_seg, active_seg_ids)
         if use_detection and frame_idx in frame_dets:
             img = annotate_detections(img, frame_dets[frame_idx], trails_det)
         if use_segmentation and frame_idx in frame_segs:
@@ -475,25 +732,28 @@ def process_frames_from_video(
     use_segmentation,
     save_dir,
     save_video=False,
-    output_video_path='output.mp4',
-    fps=30
+    output_video_path="output.mp4",
+    fps=30,
 ):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise IOError(f"Cannot open video file {video_path}")
     os.makedirs(save_dir, exist_ok=True)
-    trails_det: Dict[int, List[Tuple[int, int]]] = {}
-    trails_seg: Dict[int, List[Tuple[int, int]]] = {}
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    trails_det: dict[int, list[tuple[int, int]]] = {}
+    trails_seg: dict[int, list[tuple[int, int]]] = {}
+    fourcc = cv2.VideoWriter.fourcc(*"mp4v")
     writer = None
     frame_idx = 1
     while True:
         ret, frame = cap.read()
-        if not ret: break
+        if not ret:
+            break
         active_det_ids = [t[0] for t in frame_dets.get(frame_idx, [])]
         active_seg_ids = [t[0] for t in frame_segs.get(frame_idx, [])]
-        if use_detection: prune_trails(trails_det, active_det_ids)
-        if use_segmentation: prune_trails(trails_seg, active_seg_ids)
+        if use_detection:
+            prune_trails(trails_det, active_det_ids)
+        if use_segmentation:
+            prune_trails(trails_seg, active_seg_ids)
         if use_detection and frame_idx in frame_dets:
             frame = annotate_detections(frame, frame_dets[frame_idx], trails_det)
         if use_segmentation and frame_idx in frame_segs:
@@ -506,19 +766,20 @@ def process_frames_from_video(
         else:
             cv2.imwrite(os.path.join(save_dir, f"{frame_idx:05d}.jpg"), frame)
         frame_idx += 1
-    cap.release();
-    if writer: writer.release()
+    cap.release()
+    if writer:
+        writer.release()
 
 
 def visualize(
     video_path: str,
     detections_path: str,
     segmentations_path: str,
-    output_path: str = 'output_vis',
+    output_path: str = "output_vis",
     use_detection: bool = True,
     use_segmentation: bool = False,
     save_as_video: bool = False,
-    video_fps: int = 30
+    video_fps: int = 30,
 ):
     """
     Combined visualization for MOT detections and segmentations with track IDs and trails.
@@ -526,18 +787,35 @@ def visualize(
     frame_dets = load_detections(detections_path) if use_detection else {}
     frame_segs = load_segmentations(segmentations_path) if use_segmentation else {}
     if os.path.isdir(video_path):
-        process_frames_from_directory(video_path, frame_dets, frame_segs, use_detection, use_segmentation, output_path)
+        process_frames_from_directory(
+            video_path,
+            frame_dets,
+            frame_segs,
+            use_detection,
+            use_segmentation,
+            output_path,
+        )
     else:
-        process_frames_from_video(video_path, frame_dets, frame_segs, use_detection, use_segmentation, output_path,
-                                  save_as_video, os.path.join(output_path, 'out.mp4'), video_fps)
+        process_frames_from_video(
+            video_path,
+            frame_dets,
+            frame_segs,
+            use_detection,
+            use_segmentation,
+            output_path,
+            save_as_video,
+            os.path.join(output_path, "out.mp4"),
+            video_fps,
+        )
+
 
 def get_max_id(file_path):
     max_id = -1  # Initialize to -1 in case file is empty
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             for line in file:
                 # Split line by comma and strip whitespace
-                values = [val.strip() for val in line.split(',')]
+                values = [val.strip() for val in line.split(",")]
                 if len(values) >= 2:  # Ensure line has at least frame and id
                     try:
                         current_id = int(values[1])  # ID is second column
