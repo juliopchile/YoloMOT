@@ -64,19 +64,30 @@ from utils import return_framerate, save_yolo_results_as_json, save_mot_from_jso
 
 def convert_dataset(
     cvat_labels: str,
+    videos_path: str,
     challenge_name: str,
     split_to_eval: str | None = "test"
 ) -> None:
-    for cvat_file in os.listdir(cvat_labels):
-        video_name, ext = os.path.splitext(cvat_file)
-        cvat_path = os.path.join(cvat_labels, cvat_file)
-        
+    # Obtener nombres de archivos
+    labels = {os.path.splitext(f)[0]: f for f in os.listdir(cvat_labels)}
+    source = {os.path.splitext(f)[0]: f for f in os.listdir(videos_path)}
+    # Emparejar por nombre base
+    datasets = {}
+    for nombre in labels.keys() & source.keys():
+        datasets[nombre] = (labels[nombre], source[nombre])
+
+    # Recorrer en cada dataset
+    for dataset, files in datasets.items():
+        video_name = dataset
+        cvat_path = os.path.join(cvat_labels, files[0])
+        video_path = os.path.join(videos_path, files[1])
+
         # /data/gt/mot_challenge/<YourChallenge>-<eval>/<SeqName>/gt/gt.txt
         gt_path = os.path.join(
             'data', 'gt', 'mot_challenge',
             f"{challenge_name}-{split_to_eval}", video_name, 'gt'
         )
-        xml_to_mot(
+        img_height, img_width, length = xml_to_mot(
             xml_path=cvat_path,
             out_dir=gt_path,
             sequence_name='gt',
@@ -85,6 +96,20 @@ def convert_dataset(
             save_segmentation=False,
             use_tracked_ids=True
         )
+
+        # Create the seqinfo.ini file.
+        seq_ini_path = os.path.join('data', 'gt', 'mot_challenge', f"{challenge_name}-{split_to_eval}", video_name)
+        seq_length = length
+        frame_rate = return_framerate(video_path)
+        create_seqinfo_ini(
+            save_path=seq_ini_path,
+            seq_name=video_name,
+            seq_length=seq_length,
+            frame_rate=frame_rate,
+            img_width=img_width,
+            img_height=img_height
+        )
+
 
 # split_to_eval valid values: 'train', 'test', 'all'
 def create_dataset(videos_path, model_name, challenge_name, split_to_eval="test"):
@@ -116,12 +141,12 @@ def create_dataset(videos_path, model_name, challenge_name, split_to_eval="test"
         seq_ini_path = os.path.join('data', 'gt', 'mot_challenge', f"{challenge_name}-{split_to_eval}", video_name)
         seq_length = len(results)
         frame_rate = return_framerate(video_path)
-        create_seqinfo_ini(save_path=seq_ini_path, seq_name=video_name, seq_length=seq_length, frame_rate=frame_rate, im_width=width, im_height=height)
+        create_seqinfo_ini(save_path=seq_ini_path, seq_name=video_name, seq_length=seq_length, frame_rate=frame_rate, img_width=width, img_height=height)
 
         del model   # Delete model to save memory
 
 
-def create_predictions(videos_path, models_path, trackers_list, challenge_name, segment=False, save_segmentation=False, split_to_eval="test"):
+def make_predictions(videos_path, models_path, trackers_list, challenge_name, segment=False, save_segmentation=False, split_to_eval="test"):
     json_folder = "predictions_json"
     # Create predictions for each video (sequence)
     for model_path in models_path:
@@ -165,7 +190,7 @@ if __name__ == "__main__":
     #pred_models = ["yolov8l-seg", "yolov9t", "yolov10s", "yolo11x"]
     pred_models = [os.path.join("models", model) for model in os.listdir("models")]
     trackers = ["botsort", "bytetrack"]
-    create_predictions(videos_path, pred_models, trackers, challenge_name, segment=True)
+    make_predictions(videos_path, pred_models, trackers, challenge_name, segment=True)
 
     # Now copy the "data" folder into the TrackEval directory.
     # Then run the next code in the console while being in the TrackEval folder:

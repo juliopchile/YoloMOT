@@ -313,11 +313,18 @@ def read_xml(xml_path: str) -> tuple[dict[int, list[dict[str, Any]]], dict]:
     # Defaults
     img_width = -1
     img_height = -1
+    size = 0
 
     # Parse meta/original_size if present
     meta_el = root.find("meta")
     if meta_el is not None:
         orig_size_el = meta_el.find("task/original_size")
+        size_text = meta_el.findtext("task/size")
+        if size_text is not None:
+            try:
+                size = int(size_text)
+            except Exception:
+                size = 0
         if orig_size_el is not None:
             w_text = orig_size_el.findtext("width")
             h_text = orig_size_el.findtext("height")
@@ -407,6 +414,7 @@ def read_xml(xml_path: str) -> tuple[dict[int, list[dict[str, Any]]], dict]:
         "img_width": img_width,
         "img_height": img_height,
         "label_to_id": label_to_id,
+        "size": size
     }
     return detections_per_frame, meta
 
@@ -421,7 +429,7 @@ def xml_to_mot(
     use_tracked_ids=False,
     img_height: int = -1,
     img_width: int = -1,
-):
+) -> tuple[int, int, int]:
     """
     Read CVAT-for-video-1.1 XML and save in MOTChallenge format using
     save_mot_from_detections().
@@ -447,6 +455,7 @@ def xml_to_mot(
         img_width = meta.get("img_width", -1)
     if img_height is None or img_height < 0:
         img_height = meta.get("img_height", -1)
+    length = meta.get("size", 0)
 
     # Persist using your existing helper
     save_mot_from_detections(
@@ -460,16 +469,18 @@ def xml_to_mot(
         img_height=img_height,
         img_width=img_width,
     )
+    
+    return img_height, img_width, length
 
 def create_seqinfo_ini(
     save_path,
     seq_name,
     seq_length,
     frame_rate=30.0,
-    im_width=1920,
-    im_height=1080,
-    im_dir="img1",
-    im_ext=".jpg",
+    img_width=1920,
+    img_height=1080,
+    img_dir="img1",
+    img_ext=".jpg",
 ):
     """
     Creates a seqinfo.ini file in the specified directory with sequence
@@ -480,10 +491,10 @@ def create_seqinfo_ini(
         seq_name (str): Name of the sequence.
         seq_length (int): Total number of frames in the sequence.
         frame_rate (float, optional): Frame rate of the sequence. Defaults to 30.
-        im_width (int, optional): Width of the images. Defaults to 1920.
-        im_height (int, optional): Height of the images. Defaults to 1080.
-        im_dir (str, optional): Name of the directory containing images. Defaults to "img1".
-        im_ext (str, optional): Image file extension (including the dot). Defaults to ".jpg".
+        img_width (int, optional): Width of the images. Defaults to 1920.
+        img_height (int, optional): Height of the images. Defaults to 1080.
+        img_dir (str, optional): Name of the directory containing images. Defaults to "img1".
+        img_ext (str, optional): Image file extension (including the dot). Defaults to ".jpg".
 
     The generated INI file will have the following content:
 
@@ -508,12 +519,12 @@ def create_seqinfo_ini(
     with open(file_path, "w") as f:
         f.write("[Sequence]\n")
         f.write(f"name={seq_name}\n")
-        f.write(f"imDir={im_dir}\n")
+        f.write(f"imDir={img_dir}\n")
         f.write(f"frameRate={frame_rate}\n")
         f.write(f"seqLength={seq_length}\n")
-        f.write(f"imWidth={im_width}\n")
-        f.write(f"imHeight={im_height}\n")
-        f.write(f"imExt={im_ext}\n")
+        f.write(f"imWidth={img_width}\n")
+        f.write(f"imHeight={img_height}\n")
+        f.write(f"imExt={img_ext}\n")
 
     print(f"seqinfo.ini created at {file_path}")
 
