@@ -21,22 +21,31 @@ def create_synthetic_dataset(
     create_dataset(videos_path, gt_model, challenge_name)
 
 
+def track_with_models(
+        videos_path: str = "dataset/source",
+        pred_models_path: str = "models",
+        trackers: list = ["botsort", "bytetrack"],
+        challenge_name: str = "TrackingSalmones",
+        segment: bool = True,
+        save_segmentation: bool = True
+    ) -> None:
+
+    pred_models = [os.path.join(pred_models_path, model) for model in os.listdir(pred_models_path)]
+    create_predictions(videos_path, pred_models, trackers, challenge_name, segment=segment, save_segmentation=save_segmentation)
+
 
 if __name__ == "__main__":
     # ? (Optional) Create the synthetic Dataset.
     # create_synthetic_dataset()
 
     # ? Convert a CVAT dataset to MOTchallenge format.
-    convert_dataset(cvat_labels="dataset/cvat_labels",
-                    challenge_name="TrackingSalmones")
-    
+    #convert_dataset(cvat_labels="dataset/cvat_labels",
+    #                challenge_name="TrackingSalmones")
+
     # ? Create predictions.
     # Create predictions results using other YOLO models and trackers.
-    #pred_models = ["yolov8l-seg", "yolov9t", "yolov10s", "yolo11x"]
-    #pred_models = [os.path.join("models", model) for model in os.listdir("models")]
-    #trackers = ["botsort", "bytetrack"]
-    #create_predictions(videos_path, pred_models, trackers, challenge_name, segment=True)
-    
+    track_with_models()
+
     # ? Vizualice
     #videos_path = "dataset/source"
     #tracking_predictions_folder = "data/trackers/mot_challenge/MyCustomChallenge-test"

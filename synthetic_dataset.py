@@ -121,7 +121,7 @@ def create_dataset(videos_path, model_name, challenge_name, split_to_eval="test"
         del model   # Delete model to save memory
 
 
-def create_predictions(videos_path, models_path, trackers_list, challenge_name, segment=False, split_to_eval="test"):
+def create_predictions(videos_path, models_path, trackers_list, challenge_name, segment=False, save_segmentation=False, split_to_eval="test"):
     json_folder = "predictions_json"
     # Create predictions for each video (sequence)
     for model_path in models_path:
@@ -146,9 +146,8 @@ def create_predictions(videos_path, models_path, trackers_list, challenge_name, 
 
                 # Save the results in the MOT Challenge format in the path where predictions go.
                 # /data/trackers/mot_challenge/<YourChallenge>-<eval>/<TrackerName>/data/<SeqName01>.txt
-
                 save_mot_from_json(json_path=json_file, out_dir=pred_path, sequence_name=sequence_name, include_classes=0, fixed_confidence=False,
-                                   save_segmentation=True, use_tracked_ids=True, img_height=height, img_width=width)
+                                   save_segmentation=save_segmentation, use_tracked_ids=True, img_height=height, img_width=width)
 
                 # Add it to the sequence map files.
                 seqmaps_dir = os.path.join('data', 'gt', 'mot_challenge', 'seqmaps')
