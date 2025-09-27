@@ -1,5 +1,12 @@
 __pycache__/
+data/
+dataset/
+predictions_json/
+results/
+TrackEvalResults/
+visualization/
 create_langs.py
 **.pt
 **.onnx
 **.engine
+**.mp4
