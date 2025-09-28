@@ -1,0 +1,4 @@
+export,composite_score
+Pytorch,1.0
+FP16,0.9755224834195506
+INT8,0.0
